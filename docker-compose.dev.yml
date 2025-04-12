@@ -5,14 +5,11 @@ services:
     container_name: wordpress
     environment:
       WORDPRESS_DB_HOST: db
-      WORDPRESS_DB_NAME: wordpress
-      WORDPRESS_DB_USER: wordpress
-      WORDPRESS_DB_PASSWORD: mysql
-      VIRTUAL_HOST: localhost
+      WORDPRESS_DB_NAME: ${DB_NAME}
+      WORDPRESS_DB_USER: ${DB_USER}
+      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
+      VIRTUAL_HOST: ${HOSTNAME}
       HTTP_X_FORWARDED_PROTO: https
-      WORDPRESS_CONFIG_EXTRA: |
-        define('WP_HOME', 'https://localhost:8081');
-        define('WP_SITEURL', 'https://localhost:8081');
     depends_on:
       - db
     volumes:
@@ -25,11 +22,11 @@ services:
     image: nginxproxy/nginx-proxy:1.7
     container_name: nginx
     ports:
-      - "8081:443"
+      - "443:443"
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock:ro
-      - ./certs/cert.pem:/etc/nginx/certs/localhost.crt:ro
-      - ./certs/key.pem:/etc/nginx/certs/localhost.key:ro
+      - ./certs/cert.pem:/etc/nginx/certs/${HOSTNAME}.crt:ro
+      - ./certs/key.pem:/etc/nginx/certs/${HOSTNAME}.key:ro
     networks:
       - frontend
   db:
@@ -37,9 +34,9 @@ services:
     container_name: wordpress_db
     environment:
       MYSQL_ROOT_PASSWORD: example
-      MYSQL_DATABASE: wordpress
-      MYSQL_USER: wordpress
-      MYSQL_PASSWORD: mysql
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
     networks:
@@ -53,10 +50,10 @@ services:
     volumes:
       - wordpress:/var/www/html
     environment:
-      WORDPRESS_DB_HOST: wordpress_db
-      WORDPRESS_DB_NAME: wordpress
-      WORDPRESS_DB_USER: wordpress
-      WORDPRESS_DB_PASSWORD: mysql
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_NAME: ${DB_NAME}
+      WORDPRESS_DB_USER: ${DB_USER}
+      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
     networks:
       - backend
     entrypoint: [ "tail", "-f", "/dev/null" ]
