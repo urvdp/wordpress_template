@@ -8,10 +8,6 @@ services:
       WORDPRESS_DB_NAME: ${DB_NAME}
       WORDPRESS_DB_USER: ${DB_USER}
       WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
-      VIRTUAL_HOST: ${HOSTNAME}
-      HTTP_X_FORWARDED_PROTO: https
-      LETSENCRYPT_HOST: ${HOSTNAME}
-      LETSENCRYPT_EMAIL: ${EMAIL}
     depends_on:
       - db
     volumes:
@@ -20,38 +16,34 @@ services:
       - frontend
       - backend
 
-  nginx-proxy:
-    image: nginxproxy/nginx-proxy:1.7
-    container_name: nginx
+  caddy:
+    image: caddy:2.10
+    restart: unless-stopped
+    container_name: caddy
+    cap_add:
+      - NET_ADMIN
     ports:
-      - "80:80"
-      - "443:443"
+      #- "80:80"
+      - "443:8081"
+      #- "443:443/udp"
+    tmpfs:
+      - /tmp
     volumes:
-      - /var/run/docker.sock:/tmp/docker.sock:ro
-      - nginx_certs:/etc/nginx/certs:rw
-      - nginx_vhost:/etc/nginx/vhost.d
-      - nginx_html:/usr/share/nginx/html
-      - nginx_acme:/etc/acme.sh
-    networks:
-      - frontend
-
-  acme-companion:
-    image: nginxproxy/acme-companion
-    container_name: acme
+      - caddy_data:/data
+      - caddy_config:/config
+      - ${PWD}/conf/:/etc/caddy:ro
+      # Allow CA root cert install (development only, remove for production env)
+      - type: tmpfs
+        target: /usr/local/share/ca-certificates
+      - type: tmpfs
+        target: /etc/ssl/certs
+    links:
+      - wordpress
     depends_on:
-      - nginx-proxy
-    environment:
-      DEFAULT_EMAIL: ${EMAIL}
-    volumes_from:
-      - nginx-proxy
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - nginx_certs:/etc/nginx/certs:rw
-      - nginx_vhost:/etc/nginx/vhost.d
-      - nginx_html:/usr/share/nginx/html
-      - nginx_acme:/etc/acme.sh
+      - wordpress
     networks:
       - frontend
+    read_only: true
 
   db:
     image: mysql:5.7
@@ -69,10 +61,8 @@ services:
 volumes:
   db_data: { }
   wordpress: { }
-  nginx_certs: { }
-  nginx_vhost: { }
-  nginx_html: { }
-  nginx_acme: { }
+  caddy_data: { }
+  caddy_config: { }
 
 networks:
     frontend: {}
